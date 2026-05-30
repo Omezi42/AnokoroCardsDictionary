@@ -1,1 +1,5 @@
-card_images/*
+card_images/
+.env
+card_database.json
+card_database.csv
+test_result.json

@@ -10,13 +10,22 @@ from pydantic import BaseModel, Field
 from typing import List
 
 # --- 設定 ---
-API_KEYS = [
-    "AIzaSyCP156qVcGl0G7Fe_CSIpWgEEcoVRJZvr0",
-    "AIzaSyCwRk8zPKwIAfjrNQDezfdQAbK1DbfMfE0",
-    "AIzaSyCouNwbhao2hmZH5KRtwI1968-Z9w8v6JA",
-    "AIzaSyDi-HpazR0K4dT8n5r0_IBPvqbnIvhFl7w",
-    "AIzaSyAnozxHBMcCt58GuxFswTtROgOKdkRTzPQ"
-]
+def load_api_keys():
+    """.envファイルからAPIキーを取得する"""
+    keys = []
+    if os.path.exists(".env"):
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if "=" in line:
+                        name, val = line.split("=", 1)
+                        if name.strip() == "GEMINI_API_KEYS":
+                            keys = [k.strip() for k in val.split(",") if k.strip()]
+                            break
+    return keys
+
+API_KEYS = load_api_keys()
 OUTPUT_DIR = "card_images"
 JSON_OUTPUT = "card_database.json"
 CSV_OUTPUT = "card_database.csv"
@@ -143,6 +152,10 @@ def process_batch(client, batch_cards):
     return data.get("cards", [])
 
 def main():
+    if not API_KEYS:
+        print("[ERROR] No API keys found. Please define GEMINI_API_KEYS in your .env file.")
+        return
+        
     print("[INFO] Loading existing database...")
     existing_cards = load_existing_results()
     processed_ids = {c["card_id"] for c in existing_cards}
