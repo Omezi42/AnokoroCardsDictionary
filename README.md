@@ -6,7 +6,7 @@
 
 ### GitHub Pagesでプレイ
 
-**URL: https://omezi.github.io/AnokoroCardsDictionary/**
+**URL: https://omezi42.github.io/AnokoroCardsDictionary/**
 
 > ⚠️ `index.html`と`card_database.json`と`card_images/`が同じリポジトリにあることを確認してください。
 
