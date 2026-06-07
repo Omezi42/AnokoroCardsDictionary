@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カード文字起こしタイピングゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .correct { background-color: #22c55e !important; }
+        .incorrect { background-color: #ef4444 !important; }
+        .current-char { 
+            background-color: #3b82f6; 
+            color: white;
+            animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+        .card-image {
+            max-height: 200px;
+            object-fit: contain;
+        }
+        .typing-area {
+            font-family: 'Courier New', monospace;
+            font-size: 1.25rem;
+            line-height: 2;
+        }
+        .char {
+            display: inline-block;
+            padding: 0 1px;
+            border-radius: 2px;
+        }
+        .export-area {
+            background: #1f2937;
+            color: #10b981;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            max-height: 200px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-6 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400 mb-2">🃏 カード文字起こしタイピングゲーム</h1>
+            <p class="text-gray-400">画像の文字を読んで、OCRの結果を修正してください</p>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="mb-6 bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div id="progress" class="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="flex justify-center gap-8 mb-6 text-sm">
+            <div class="bg-gray-800 px-4 py-2 rounded-lg">
+                <span class="text-gray-400">進行:</span>
+                <span id="current-index" class="text-xl font-bold text-blue-400">0</span>
+                <span class="text-gray-400">/</span>
+                <span id="total-count" class="text-gray-400">0</span>
+            </div>
+            <div class="bg-gray-800 px-4 py-2 rounded-lg">
+                <span class="text-gray-400">完了:</span>
+                <span id="completed-count" class="text-xl font-bold text-green-400">0</span>
+            </div>
+            <div class="bg-gray-800 px-4 py-2 rounded-lg">
+                <span class="text-gray-400">精度:</span>
+                <span id="accuracy" class="text-xl font-bold text-yellow-400">100%</span>
+            </div>
+        </div>
+
+        <!-- Main Game Area -->
+        <div class="grid lg:grid-cols-2 gap-6 mb-6">
+            <!-- Image Section -->
+            <div class="bg-gray-800 rounded-xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-purple-400">📷 カード画像</h2>
+                    <div class="flex gap-2">
+                        <select id="field-select" class="bg-gray-700 text-sm rounded px-2 py-1">
+                            <option value="name">名前 (name)</option>
+                            <option value="effect">効果 (effect)</option>
+                            <option value="lore"> Lore</option>
+                            <option value="yomi">読み (yomi)</option>
+                            <option value="type">タイプ (type)</option>
+                            <option value="power">パワー (power)</option>
+                            <option value="cost">コスト (cost)</option>
+                            <option value="set">セット (set)</option>
+                            <option value="tag">タグ (tag)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Card ID Display -->
+                <div class="text-center mb-3">
+                    <span class="inline-block bg-blue-600 text-white px-4 py-1 rounded-full text-lg font-bold" id="card-id">-</span>
+                </div>
+                
+                <!-- Image Grid -->
+                <div class="grid grid-cols-3 gap-2 mb-4" id="image-container">
+                    <!-- Images will be loaded here -->
+                </div>
+                
+                <!-- Reference Text from JSON -->
+                <div class="bg-gray-900 rounded-lg p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-semibold text-gray-400">📝 現在のOCR結果:</h3>
+                        <button onclick="copyOcrText()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">コピー</button>
+                    </div>
+                    <p id="ocr-text" class="text-gray-300 text-sm"></p>
+                </div>
+            </div>
+
+            <!-- Typing Section -->
+            <div class="bg-gray-800 rounded-xl p-4">
+                <h2 class="text-lg font-semibold text-green-400 mb-3">⌨️ 正しいテキストを入力</h2>
+                
+                <!-- Typing Input -->
+                <textarea 
+                    id="typed-text" 
+                    class="w-full bg-gray-900 border-2 border-gray-700 rounded-lg p-4 text-lg h-32 resize-none focus:border-blue-500 focus:outline-none"
+                    placeholder="画像を見ながら正しいテキストを入力してください..."
+                    oninput="checkTyping()"
+                ></textarea>
+                
+                <!-- Character by Character Display -->
+                <div id="char-display" class="typing-area mt-4 p-3 bg-gray-900 rounded-lg min-h-[60px] break-all"></div>
+                
+                <!-- Match Result -->
+                <div id="match-result" class="mt-4 text-center text-xl font-bold"></div>
+                
+                <!-- Action Buttons -->
+                <div class="flex gap-3 mt-4">
+                    <button onclick="saveAndNext()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition">
+                        ✓ 保存して次へ
+                    </button>
+                    <button onclick="skip()" class="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition">
+                        ⏭ スキップ
+                    </button>
+                    <button onclick="markCorrect()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                        ✓ 正解
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="bg-gray-800 rounded-xl p-4 mb-6">
+            <div class="flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex gap-3 items-center">
+                    <button onclick="prevCard()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">◀ 前のカード</button>
+                    <button onclick="nextCard()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">次のカード ▶</button>
+                    <button onclick="shuffleCards()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">🔀 シャッフル</button>
+                </div>
+                <div class="flex gap-3 items-center">
+                    <input type="number" id="goto-id" class="bg-gray-700 w-20 px-2 py-2 rounded text-center" placeholder="ID">
+                    <button onclick="goToCard()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition">移動</button>
+                </div>
+                <div class="flex gap-3 items-center">
+                    <button onclick="exportJson()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition">📥 JSON出力</button>
+                    <button onclick="exportCsv()" class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition">📥 CSV出力</button>
+                    <button onclick="importJson()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition">📤 JSON読込</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Preview Modal -->
+        <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 p-4">
+            <div class="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-green-400">📋 エクスポートプレビュー</h3>
+                    <div class="flex gap-2">
+                        <button onclick="copyExport()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm">📋 クリップボードにコピー</button>
+                        <button onclick="closeExportModal()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg">✕ 閉じる</button>
+                    </div>
+                </div>
+                <textarea id="export-content" class="export-area flex-1 rounded-lg p-4" readonly></textarea>
+            </div>
+        </div>
+
+        <!-- Import Modal -->
+        <div id="import-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 p-4">
+            <div class="bg-gray-800 rounded-xl p-6 max-w-2xl w-full">
+                <h3 class="text-xl font-bold text-yellow-400 mb-4">📤 JSONインポート</h3>
+                <p class="text-gray-400 text-sm mb-4">保存したJSONファイルを貼り付けてください：</p>
+                <textarea id="import-content" class="w-full h-48 bg-gray-900 border border-gray-700 rounded-lg p-3 font-mono text-sm"></textarea>
+                <div class="flex gap-3 mt-4">
+                    <button onclick="confirmImport()" class="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg font-semibold">インポート</button>
+                    <button onclick="closeImportModal()" class="bg-gray-600 hover:bg-gray-500 py-2 px-6 rounded-lg">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-500 text-sm mt-8">
+            <p>進捗はブラウザに自動保存されます</p>
+        </footer>
+    </div>
+
+    <script>
+        // ============ State ============
+        let cards = [];
+        let currentIndex = 0;
+        let progress = { completed: new Set(), corrections: {} };
+        let currentField = 'name';
+        const IMAGE_BASE = './card_images';
+        const TOTAL_FIELDS = ['name', 'effect', 'lore', 'yomi', 'type', 'power', 'cost', 'set', 'tag'];
+        const FIELD_LABELS = {
+            name: 'カード名',
+            effect: '効果',
+            lore: '説明文',
+            yomi: '読み',
+            type: 'タイプ',
+            power: 'パワー',
+            cost: 'コスト',
+            set: 'セット',
+            tag: 'タグ'
+        };
+
+        // ============ Initialize ============
+        async function init() {
+            try {
+                const response = await fetch('./card_database.json');
+                const data = await response.json();
+                cards = data.cards || data;
+                
+                // Load saved progress
+                loadProgress();
+                
+                document.getElementById('total-count').textContent = cards.length;
+                updateDisplay();
+                
+                // Event listeners
+                document.getElementById('field-select').addEventListener('change', (e) => {
+                    currentField = e.target.value;
+                    updateDisplay();
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', handleKeyboard);
+                
+            } catch (error) {
+                console.error('Failed to load card_database.json:', error);
+                document.getElementById('app').innerHTML = `
+                    <div class="text-center py-20">
+                        <h2 class="text-2xl font-bold text-red-400 mb-4">エラー</h2>
+                        <p class="text-gray-400">card_database.json の読み込みに失敗しました。</p>
+                        <p class="text-gray-500 text-sm mt-2">リポジトリのルートに card_database.json があることを確認してください。</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ============ Display ============
+        function updateDisplay() {
+            if (cards.length === 0) return;
+            
+            const card = cards[currentIndex];
+            
+            // Update card ID
+            document.getElementById('card-id').textContent = `ID: ${card.card_id}`;
+            
+            // Load images - show all fields for reference
+            const imageContainer = document.getElementById('image-container');
+            imageContainer.innerHTML = TOTAL_FIELDS.map(field => `
+                <div class="text-center">
+                    <div class="relative">
+                        <img 
+                            src="${IMAGE_BASE}/${field}/${card.card_id}.png" 
+                            alt="${FIELD_LABELS[field]}"
+                            class="card-image w-full rounded-lg bg-gray-900"
+                            onerror="this.style.display='none'"
+                        >
+                        ${field === currentField ? '<div class="absolute top-1 right-1 bg-blue-500 text-xs px-2 py-0.5 rounded">★</div>' : ''}
+                    </div>
+                    <span class="text-xs text-gray-500 mt-1 block">${FIELD_LABELS[field]}</span>
+                </div>
+            `).join('');
+            
+            // Update OCR text
+            const ocrValue = card[currentField] || '';
+            document.getElementById('ocr-text').textContent = ocrValue || '(空)';
+            
+            // Load previously typed text if exists
+            const savedText = progress.corrections[`${card.card_id}_${currentField}`];
+            document.getElementById('typed-text').value = savedText || ocrValue;
+            
+            // Update stats
+            document.getElementById('current-index').textContent = currentIndex + 1;
+            document.getElementById('completed-count').textContent = progress.completed.size;
+            
+            // Calculate accuracy (based on character match)
+            updateCharDisplay();
+            updateMatchResult();
+            
+            // Update progress bar
+            const pct = (currentIndex / cards.length) * 100;
+            document.getElementById('progress').style.width = pct + '%';
+            
+            // Focus input
+            document.getElementById('typed-text').focus();
+        }
+
+        function updateCharDisplay() {
+            const ocr = cards[currentIndex][currentField] || '';
+            const typed = document.getElementById('typed-text').value;
+            const display = document.getElementById('char-display');
+            
+            let html = '';
+            for (let i = 0; i < ocr.length; i++) {
+                let cls = 'char text-gray-400';
+                if (i < typed.length) {
+                    cls = typed[i] === ocr[i] ? 'char text-green-400' : 'char text-red-400';
+                } else if (i === typed.length) {
+                    cls = 'char current-char';
+                }
+                const char = ocr[i] === ' ' ? '&nbsp;' : escHtml(ocr[i]);
+                html += `<span class="${cls}">${char}</span>`;
+            }
+            display.innerHTML = html;
+        }
+
+        function updateMatchResult() {
+            const ocr = cards[currentIndex][currentField] || '';
+            const typed = document.getElementById('typed-text').value;
+            const result = document.getElementById('match-result');
+            
+            if (typed.length === 0) {
+                result.textContent = '';
+                result.className = 'mt-4 text-center text-xl font-bold';
+            } else if (typed === ocr) {
+                result.textContent = '✅ 完全一致！';
+                result.className = 'mt-4 text-center text-xl font-bold text-green-400';
+            } else if (ocr.startsWith(typed) || typed.startsWith(ocr)) {
+                const matchLen = [...typed].filter((c, i) => c === [...ocr][i]).length;
+                const pct = Math.round((matchLen / Math.max(ocr.length, typed.length)) * 100);
+                result.textContent = `🔄 ${pct}% 一致`;
+                result.className = 'mt-4 text-center text-xl font-bold text-yellow-400';
+            } else {
+                result.textContent = '❌ 不一致';
+                result.className = 'mt-4 text-center text-xl font-bold text-red-400';
+            }
+        }
+
+        function checkTyping() {
+            updateCharDisplay();
+            updateMatchResult();
+            saveProgress();
+        }
+
+        // ============ Navigation ============
+        function saveAndNext() {
+            const card = cards[currentIndex];
+            const key = `${card.card_id}_${currentField}`;
+            const typed = document.getElementById('typed-text').value;
+            
+            // Save correction
+            progress.corrections[key] = typed;
+            progress.completed.add(key);
+            
+            saveProgress();
+            updateDisplay();
+            
+            // Auto advance
+            setTimeout(() => nextCard(), 100);
+        }
+
+        function skip() {
+            nextCard();
+        }
+
+        function markCorrect() {
+            const ocr = cards[currentIndex][currentField] || '';
+            document.getElementById('typed-text').value = ocr;
+            saveAndNext();
+        }
+
+        function prevCard() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+
+        function nextCard() {
+            if (currentIndex < cards.length - 1) {
+                currentIndex++;
+                updateDisplay();
+            }
+        }
+
+        function goToCard() {
+            const id = parseInt(document.getElementById('goto-id').value);
+            const idx = cards.findIndex(c => c.card_id === id);
+            if (idx >= 0) {
+                currentIndex = idx;
+                updateDisplay();
+            }
+        }
+
+        function shuffleCards() {
+            // Fisher-Yates shuffle
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+            currentIndex = 0;
+            updateDisplay();
+        }
+
+        // ============ Export/Import ============
+        function exportJson() {
+            // Apply corrections to cards
+            const corrected = cards.map(card => {
+                const corrected = { ...card };
+                TOTAL_FIELDS.forEach(field => {
+                    const key = `${card.card_id}_${field}`;
+                    if (progress.corrections[key] !== undefined) {
+                        corrected[field] = progress.corrections[key];
+                    }
+                });
+                return corrected;
+            });
+            
+            const json = JSON.stringify({ cards: corrected }, null, 2);
+            document.getElementById('export-content').value = json;
+            document.getElementById('export-modal').classList.remove('hidden');
+            document.getElementById('export-modal').classList.add('flex');
+        }
+
+        function exportCsv() {
+            // Apply corrections and export as CSV
+            const corrected = cards.map(card => {
+                const row = {};
+                TOTAL_FIELDS.forEach(field => {
+                    const key = `${card.card_id}_${field}`;
+                    row[field] = progress.corrections[key] !== undefined 
+                        ? progress.corrections[key] 
+                        : (card[field] || '');
+                });
+                return row;
+            });
+            
+            const headers = ['card_id', ...TOTAL_FIELDS].join(',');
+            const rows = corrected.map(card => {
+                return TOTAL_FIELDS.map(f => {
+                    let val = card[f] || '';
+                    // Escape CSV special characters
+                    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+                        val = '"' + val.replace(/"/g, '""') + '"';
+                    }
+                    return val;
+                }).join(',');
+            });
+            
+            const csv = [headers, ...rows].join('\n');
+            document.getElementById('export-content').value = csv;
+            document.getElementById('export-modal').classList.remove('hidden');
+            document.getElementById('export-modal').classList.add('flex');
+        }
+
+        function importJson() {
+            document.getElementById('import-modal').classList.remove('hidden');
+            document.getElementById('import-modal').classList.add('flex');
+            document.getElementById('import-content').value = '';
+        }
+
+        function confirmImport() {
+            try {
+                const data = JSON.parse(document.getElementById('import-content').value);
+                const importedCards = data.cards || data;
+                
+                // Rebuild corrections from imported data
+                progress.corrections = {};
+                progress.completed = new Set();
+                
+                importedCards.forEach(card => {
+                    TOTAL_FIELDS.forEach(field => {
+                        if (card[field] !== undefined && card[field] !== cards.find(c => c.card_id === card.card_id)?.[field]) {
+                            const key = `${card.card_id}_${field}`;
+                            progress.corrections[key] = card[field];
+                            progress.completed.add(key);
+                        }
+                    });
+                });
+                
+                saveProgress();
+                closeImportModal();
+                updateDisplay();
+                alert('インポートが完了しました！');
+            } catch (e) {
+                alert('JSONの解析に失敗しました: ' + e.message);
+            }
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+            document.getElementById('export-modal').classList.remove('flex');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+            document.getElementById('import-modal').classList.remove('flex');
+        }
+
+        function copyExport() {
+            const content = document.getElementById('export-content');
+            content.select();
+            document.execCommand('copy');
+            alert('クリップボードにコピーしました！');
+        }
+
+        function copyOcrText() {
+            const text = document.getElementById('ocr-text').textContent;
+            navigator.clipboard.writeText(text);
+            alert('コピーしました！');
+        }
+
+        // ============ Persistence ============
+        function saveProgress() {
+            const data = {
+                corrections: progress.corrections,
+                completed: [...progress.completed]
+            };
+            localStorage.setItem('typingGameProgress', JSON.stringify(data));
+        }
+
+        function loadProgress() {
+            try {
+                const saved = localStorage.getItem('typingGameProgress');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    progress.corrections = data.corrections || {};
+                    progress.completed = new Set(data.completed || []);
+                }
+            } catch (e) {
+                console.log('Failed to load progress');
+            }
+        }
+
+        // ============ Keyboard Shortcuts ============
+        function handleKeyboard(e) {
+            // Don't trigger shortcuts when typing in textarea
+            if (e.target.tagName === 'TEXTAREA') return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    prevCard();
+                    break;
+                case 'ArrowRight':
+                    nextCard();
+                    break;
+                case 'Enter':
+                case ' ':
+                    if (e.target.id !== 'typed-text') {
+                        document.getElementById('typed-text').focus();
+                    }
+                    break;
+            }
+        }
+
+        // ============ Utilities ============
+        function escHtml(str) {
+            return str.replace(/&/g, '&amp;')
+                     .replace(/</g, '&lt;')
+                     .replace(/>/g, '&gt;')
+                     .replace(/"/g, '&quot;');
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
