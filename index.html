@@ -20,7 +20,8 @@
             to { opacity: 1; }
         }
         .card-image {
-            max-height: 200px;
+            max-height: 300px;
+            max-width: 100%;
             object-fit: contain;
         }
         .typing-area {
@@ -41,162 +42,212 @@
             max-height: 200px;
             overflow: auto;
         }
+        /* Responsive image sizing */
+        @media (min-width: 768px) {
+            .card-image {
+                max-height: 400px;
+            }
+        }
+        @media (min-width: 1024px) {
+            .card-image {
+                max-height: 500px;
+            }
+        }
+        /* Image navigation dots */
+        .thumb-nav {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .thumb-nav > div {
+            scroll-snap-align: center;
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
+<body class="bg-gray-50 text-gray-800 min-h-screen">
     <div id="app" class="container mx-auto px-4 py-6 max-w-6xl">
         <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-blue-400 mb-2">🃏 カード文字起こしタイピングゲーム</h1>
-            <p class="text-gray-400">画像の文字を読んで、OCRの結果を修正してください</p>
+        <header class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-600 mb-2">🃏 カード文字起こしタイピングゲーム</h1>
+            <p class="text-gray-500 text-sm md:text-base">画像の文字を読んで、OCRの結果を修正してください</p>
         </header>
 
         <!-- Progress Bar -->
-        <div class="mb-6 bg-gray-800 rounded-full h-3 overflow-hidden">
+        <div class="mb-4 bg-gray-200 rounded-full h-3 overflow-hidden">
             <div id="progress" class="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-300" style="width: 0%"></div>
         </div>
 
         <!-- Stats -->
-        <div class="flex justify-center gap-8 mb-6 text-sm">
-            <div class="bg-gray-800 px-4 py-2 rounded-lg">
-                <span class="text-gray-400">進行:</span>
-                <span id="current-index" class="text-xl font-bold text-blue-400">0</span>
+        <div class="flex flex-wrap justify-center gap-3 md:gap-6 mb-4 text-sm">
+            <div class="bg-white shadow rounded-lg px-3 md:px-4 py-2">
+                <span class="text-gray-500">進行:</span>
+                <span id="current-index" class="text-xl font-bold text-blue-600">0</span>
                 <span class="text-gray-400">/</span>
                 <span id="total-count" class="text-gray-400">0</span>
             </div>
-            <div class="bg-gray-800 px-4 py-2 rounded-lg">
-                <span class="text-gray-400">完了:</span>
-                <span id="completed-count" class="text-xl font-bold text-green-400">0</span>
+            <div class="bg-white shadow rounded-lg px-3 md:px-4 py-2">
+                <span class="text-gray-500">完了:</span>
+                <span id="completed-count" class="text-xl font-bold text-green-600">0</span>
             </div>
-            <div class="bg-gray-800 px-4 py-2 rounded-lg">
-                <span class="text-gray-400">精度:</span>
-                <span id="accuracy" class="text-xl font-bold text-yellow-400">100%</span>
+            <div class="bg-white shadow rounded-lg px-3 md:px-4 py-2">
+                <span class="text-gray-500">フィールド:</span>
+                <select id="field-select" class="bg-transparent font-semibold text-purple-600 focus:outline-none">
+                    <option value="name">名前</option>
+                    <option value="effect">効果</option>
+                    <option value="lore">説明</option>
+                    <option value="yomi">読み</option>
+                    <option value="type">タイプ</option>
+                    <option value="power">パワー</option>
+                    <option value="cost">コスト</option>
+                    <option value="set">セット</option>
+                    <option value="tag">タグ</option>
+                </select>
             </div>
         </div>
 
+        <!-- Card ID Display -->
+        <div class="text-center mb-4">
+            <span class="inline-block bg-blue-600 text-white px-6 py-2 rounded-full text-lg md:text-xl font-bold shadow" id="card-id">-</span>
+        </div>
+
         <!-- Main Game Area -->
-        <div class="grid lg:grid-cols-2 gap-6 mb-6">
-            <!-- Image Section -->
-            <div class="bg-gray-800 rounded-xl p-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-lg font-semibold text-purple-400">📷 カード画像</h2>
-                    <div class="flex gap-2">
-                        <select id="field-select" class="bg-gray-700 text-sm rounded px-2 py-1">
-                            <option value="name">名前 (name)</option>
-                            <option value="effect">効果 (effect)</option>
-                            <option value="lore"> Lore</option>
-                            <option value="yomi">読み (yomi)</option>
-                            <option value="type">タイプ (type)</option>
-                            <option value="power">パワー (power)</option>
-                            <option value="cost">コスト (cost)</option>
-                            <option value="set">セット (set)</option>
-                            <option value="tag">タグ (tag)</option>
-                        </select>
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Image Section - Left/Top -->
+            <div class="lg:w-1/2">
+                <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+                    <h2 class="text-lg font-semibold text-gray-600 mb-4 flex items-center gap-2">
+                        <span>📷</span> カード画像
+                    </h2>
+                    
+                    <!-- Main Image Display -->
+                    <div class="relative bg-gray-100 rounded-xl overflow-hidden mb-4 flex items-center justify-center min-h-[300px] md:min-h-[400px]">
+                        <img 
+                            id="main-image"
+                            src="" 
+                            alt="選択中の画像"
+                            class="card-image"
+                            onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2260%22 x=%2250%22 text-anchor=%22middle%22 font-size=%2260%22>📷</text></svg>'"
+                        >
+                        
+                        <!-- Image Navigation Arrows -->
+                        <button onclick="prevImage()" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 md:p-3 shadow-lg transition z-10">
+                            <span class="text-xl md:text-2xl">◀</span>
+                        </button>
+                        <button onclick="nextImage()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 md:p-3 shadow-lg transition z-10">
+                            <span class="text-xl md:text-2xl">▶</span>
+                        </button>
                     </div>
-                </div>
-                
-                <!-- Card ID Display -->
-                <div class="text-center mb-3">
-                    <span class="inline-block bg-blue-600 text-white px-4 py-1 rounded-full text-lg font-bold" id="card-id">-</span>
-                </div>
-                
-                <!-- Image Grid -->
-                <div class="grid grid-cols-3 gap-2 mb-4" id="image-container">
-                    <!-- Images will be loaded here -->
-                </div>
-                
-                <!-- Reference Text from JSON -->
-                <div class="bg-gray-900 rounded-lg p-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-sm font-semibold text-gray-400">📝 現在のOCR結果:</h3>
-                        <button onclick="copyOcrText()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">コピー</button>
+                    
+                    <!-- Image Info -->
+                    <div class="text-center mb-4">
+                        <span id="image-label" class="inline-block bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-sm font-medium">-</span>
                     </div>
-                    <p id="ocr-text" class="text-gray-300 text-sm"></p>
+                    
+                    <!-- Thumbnail Navigation -->
+                    <div class="flex gap-2 overflow-x-auto pb-2 thumb-nav">
+                        <!-- Thumbnails will be inserted here -->
+                    </div>
                 </div>
             </div>
 
-            <!-- Typing Section -->
-            <div class="bg-gray-800 rounded-xl p-4">
-                <h2 class="text-lg font-semibold text-green-400 mb-3">⌨️ 正しいテキストを入力</h2>
-                
-                <!-- Typing Input -->
-                <textarea 
-                    id="typed-text" 
-                    class="w-full bg-gray-900 border-2 border-gray-700 rounded-lg p-4 text-lg h-32 resize-none focus:border-blue-500 focus:outline-none"
-                    placeholder="画像を見ながら正しいテキストを入力してください..."
-                    oninput="checkTyping()"
-                ></textarea>
-                
-                <!-- Character by Character Display -->
-                <div id="char-display" class="typing-area mt-4 p-3 bg-gray-900 rounded-lg min-h-[60px] break-all"></div>
-                
-                <!-- Match Result -->
-                <div id="match-result" class="mt-4 text-center text-xl font-bold"></div>
-                
-                <!-- Action Buttons -->
-                <div class="flex gap-3 mt-4">
-                    <button onclick="saveAndNext()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition">
-                        ✓ 保存して次へ
-                    </button>
-                    <button onclick="skip()" class="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition">
-                        ⏭ スキップ
-                    </button>
-                    <button onclick="markCorrect()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition">
-                        ✓ 正解
+            <!-- Typing Section - Right/Bottom -->
+            <div class="lg:w-1/2">
+                <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+                    <h2 class="text-lg font-semibold text-gray-600 mb-4 flex items-center gap-2">
+                        <span>⌨️</span> 正しいテキストを入力
+                    </h2>
+                    
+                    <!-- OCR Reference -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-semibold text-blue-600">📝 現在のOCR結果:</h3>
+                            <button onclick="copyOcrText()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-600 px-3 py-1 rounded transition">コピー</button>
+                        </div>
+                        <p id="ocr-text" class="text-gray-600 text-sm md:text-base"></p>
+                    </div>
+                    
+                    <!-- Typing Input -->
+                    <textarea 
+                        id="typed-text" 
+                        class="w-full bg-gray-50 border-2 border-gray-300 rounded-xl p-4 text-base md:text-lg h-32 md:h-40 resize-none focus:border-blue-500 focus:outline-none focus:bg-white transition"
+                        placeholder="画像を見ながら正しいテキストを入力してください..."
+                        oninput="checkTyping()"
+                    ></textarea>
+                    
+                    <!-- Character by Character Display -->
+                    <div id="char-display" class="typing-area mt-4 p-3 md:p-4 bg-gray-50 rounded-lg min-h-[60px] break-all text-sm md:text-base"></div>
+                    
+                    <!-- Match Result -->
+                    <div id="match-result" class="mt-4 text-center text-lg md:text-xl font-bold"></div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3 mt-6">
+                        <button onclick="saveAndNext()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition shadow-lg hover:shadow-xl">
+                            ✓ 保存して次へ
+                        </button>
+                        <button onclick="markCorrect()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition shadow-lg hover:shadow-xl">
+                            ✓ OCRのまま
+                        </button>
+                    </div>
+                    <button onclick="skip()" class="w-full mt-3 bg-gray-200 hover:bg-gray-300 text-gray-600 font-semibold py-2 rounded-xl transition">
+                        ⏭ スキップ（次のフィールド）
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Control Panel -->
-        <div class="bg-gray-800 rounded-xl p-4 mb-6">
-            <div class="flex flex-wrap gap-3 items-center justify-between">
-                <div class="flex gap-3 items-center">
-                    <button onclick="prevCard()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">◀ 前のカード</button>
-                    <button onclick="nextCard()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">次のカード ▶</button>
-                    <button onclick="shuffleCards()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">🔀 シャッフル</button>
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 mt-6">
+            <div class="flex flex-wrap gap-3 md:gap-4 items-center justify-center">
+                <button onclick="prevCard()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 md:px-6 rounded-lg transition">◀ 前のカード</button>
+                <button onclick="nextCard()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 md:px-6 rounded-lg transition">次のカード ▶</button>
+                <button onclick="shuffleCards()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 md:px-6 rounded-lg transition">🔀 シャッフル</button>
+                
+                <div class="flex gap-2 items-center">
+                    <input type="number" id="goto-id" class="bg-gray-100 w-20 px-3 py-2 rounded-lg text-center" placeholder="ID">
+                    <button onclick="goToCard()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">移動</button>
                 </div>
-                <div class="flex gap-3 items-center">
-                    <input type="number" id="goto-id" class="bg-gray-700 w-20 px-2 py-2 rounded text-center" placeholder="ID">
-                    <button onclick="goToCard()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition">移動</button>
-                </div>
-                <div class="flex gap-3 items-center">
-                    <button onclick="exportJson()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition">📥 JSON出力</button>
-                    <button onclick="exportCsv()" class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition">📥 CSV出力</button>
-                    <button onclick="importJson()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition">📤 JSON読込</button>
-                </div>
+            </div>
+        </div>
+
+        <!-- Export/Import Panel -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 mt-4">
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button onclick="exportJson()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition">📥 JSONエクスポート</button>
+                <button onclick="exportCsv()" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-6 rounded-lg transition">📥 CSVエクスポート</button>
+                <button onclick="importJson()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-6 rounded-lg transition">📤 JSONインポート</button>
+                <button onclick="resetProgress()" class="bg-red-100 hover:bg-red-200 text-red-600 font-semibold py-2 px-6 rounded-lg transition">🗑️ 進捗リセット</button>
             </div>
         </div>
 
         <!-- Export Preview Modal -->
-        <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 p-4">
-            <div class="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-green-400">📋 エクスポートプレビュー</h3>
+                    <h3 class="text-xl font-bold text-gray-800">📋 エクスポートプレビュー</h3>
                     <div class="flex gap-2">
-                        <button onclick="copyExport()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm">📋 クリップボードにコピー</button>
-                        <button onclick="closeExportModal()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg">✕ 閉じる</button>
+                        <button onclick="copyExport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">📋 コピー</button>
+                        <button onclick="closeExportModal()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg transition">✕ 閉じる</button>
                     </div>
                 </div>
-                <textarea id="export-content" class="export-area flex-1 rounded-lg p-4" readonly></textarea>
+                <textarea id="export-content" class="export-area flex-1 rounded-xl p-4" readonly></textarea>
             </div>
         </div>
 
         <!-- Import Modal -->
-        <div id="import-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 p-4">
-            <div class="bg-gray-800 rounded-xl p-6 max-w-2xl w-full">
-                <h3 class="text-xl font-bold text-yellow-400 mb-4">📤 JSONインポート</h3>
-                <p class="text-gray-400 text-sm mb-4">保存したJSONファイルを貼り付けてください：</p>
-                <textarea id="import-content" class="w-full h-48 bg-gray-900 border border-gray-700 rounded-lg p-3 font-mono text-sm"></textarea>
+        <div id="import-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">📤 JSONインポート</h3>
+                <p class="text-gray-500 text-sm mb-4">保存したJSONファイルを貼り付けてください：</p>
+                <textarea id="import-content" class="w-full h-48 bg-gray-50 border border-gray-300 rounded-xl p-3 font-mono text-sm"></textarea>
                 <div class="flex gap-3 mt-4">
-                    <button onclick="confirmImport()" class="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg font-semibold">インポート</button>
-                    <button onclick="closeImportModal()" class="bg-gray-600 hover:bg-gray-500 py-2 px-6 rounded-lg">キャンセル</button>
+                    <button onclick="confirmImport()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition">インポート</button>
+                    <button onclick="closeImportModal()" class="bg-gray-200 hover:bg-gray-300 py-3 px-6 rounded-xl transition">キャンセル</button>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
-        <footer class="text-center text-gray-500 text-sm mt-8">
+        <footer class="text-center text-gray-400 text-sm mt-8">
             <p>進捗はブラウザに自動保存されます</p>
         </footer>
     </div>
@@ -205,6 +256,7 @@
         // ============ State ============
         let cards = [];
         let currentIndex = 0;
+        let currentImageIndex = 0;
         let progress = { completed: new Set(), corrections: {} };
         let currentField = 'name';
         const IMAGE_BASE = './card_images';
@@ -237,6 +289,7 @@
                 // Event listeners
                 document.getElementById('field-select').addEventListener('change', (e) => {
                     currentField = e.target.value;
+                    currentImageIndex = TOTAL_FIELDS.indexOf(currentField);
                     updateDisplay();
                 });
                 
@@ -247,9 +300,9 @@
                 console.error('Failed to load card_database.json:', error);
                 document.getElementById('app').innerHTML = `
                     <div class="text-center py-20">
-                        <h2 class="text-2xl font-bold text-red-400 mb-4">エラー</h2>
-                        <p class="text-gray-400">card_database.json の読み込みに失敗しました。</p>
-                        <p class="text-gray-500 text-sm mt-2">リポジトリのルートに card_database.json があることを確認してください。</p>
+                        <h2 class="text-2xl font-bold text-red-500 mb-4">エラー</h2>
+                        <p class="text-gray-500">card_database.json の読み込みに失敗しました。</p>
+                        <p class="text-gray-400 text-sm mt-2">リポジトリのルートに card_database.json があることを確認してください。</p>
                     </div>
                 `;
             }
@@ -264,24 +317,29 @@
             // Update card ID
             document.getElementById('card-id').textContent = `ID: ${card.card_id}`;
             
-            // Load images - show all fields for reference
-            const imageContainer = document.getElementById('image-container');
-            imageContainer.innerHTML = TOTAL_FIELDS.map(field => `
-                <div class="text-center">
-                    <div class="relative">
-                        <img 
-                            src="${IMAGE_BASE}/${field}/${card.card_id}.png" 
-                            alt="${FIELD_LABELS[field]}"
-                            class="card-image w-full rounded-lg bg-gray-900"
-                            onerror="this.style.display='none'"
-                        >
-                        ${field === currentField ? '<div class="absolute top-1 right-1 bg-blue-500 text-xs px-2 py-0.5 rounded">★</div>' : ''}
-                    </div>
-                    <span class="text-xs text-gray-500 mt-1 block">${FIELD_LABELS[field]}</span>
-                </div>
+            // Update main image
+            const field = TOTAL_FIELDS[currentImageIndex];
+            document.getElementById('main-image').src = `${IMAGE_BASE}/${field}/${card.card_id}.png`;
+            document.getElementById('image-label').textContent = FIELD_LABELS[field];
+            
+            // Generate thumbnails
+            const thumbContainer = document.querySelector('.thumb-nav');
+            thumbContainer.innerHTML = TOTAL_FIELDS.map((f, i) => `
+                <button 
+                    onclick="selectImage(${i})" 
+                    class="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition ${i === currentImageIndex ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                >
+                    <img 
+                        src="${IMAGE_BASE}/${f}/${card.card_id}.png" 
+                        alt="${FIELD_LABELS[f]}"
+                        class="w-full h-full object-cover"
+                        onerror="this.style.display='none'"
+                    >
+                    <span class="block text-xs text-center py-1 bg-gray-100">${FIELD_LABELS[f]}</span>
+                </button>
             `).join('');
             
-            // Update OCR text
+            // Update OCR text (show only selected field)
             const ocrValue = card[currentField] || '';
             document.getElementById('ocr-text').textContent = ocrValue || '(空)';
             
@@ -293,16 +351,15 @@
             document.getElementById('current-index').textContent = currentIndex + 1;
             document.getElementById('completed-count').textContent = progress.completed.size;
             
-            // Calculate accuracy (based on character match)
+            // Update progress bar
+            const pct = ((currentIndex + 1) / cards.length) * 100;
+            document.getElementById('progress').style.width = pct + '%';
+            
             updateCharDisplay();
             updateMatchResult();
             
-            // Update progress bar
-            const pct = (currentIndex / cards.length) * 100;
-            document.getElementById('progress').style.width = pct + '%';
-            
             // Focus input
-            document.getElementById('typed-text').focus();
+            setTimeout(() => document.getElementById('typed-text').focus(), 100);
         }
 
         function updateCharDisplay() {
@@ -310,11 +367,16 @@
             const typed = document.getElementById('typed-text').value;
             const display = document.getElementById('char-display');
             
+            if (!ocr) {
+                display.innerHTML = '<span class="text-gray-400 text-sm">このフィールドは空です</span>';
+                return;
+            }
+            
             let html = '';
             for (let i = 0; i < ocr.length; i++) {
-                let cls = 'char text-gray-400';
+                let cls = 'char text-gray-600';
                 if (i < typed.length) {
-                    cls = typed[i] === ocr[i] ? 'char text-green-400' : 'char text-red-400';
+                    cls = typed[i] === ocr[i] ? 'char text-green-500 bg-green-100' : 'char text-red-500 bg-red-100';
                 } else if (i === typed.length) {
                     cls = 'char current-char';
                 }
@@ -331,18 +393,20 @@
             
             if (typed.length === 0) {
                 result.textContent = '';
-                result.className = 'mt-4 text-center text-xl font-bold';
+                result.className = 'mt-4 text-center text-lg md:text-xl font-bold';
             } else if (typed === ocr) {
                 result.textContent = '✅ 完全一致！';
-                result.className = 'mt-4 text-center text-xl font-bold text-green-400';
+                result.className = 'mt-4 text-center text-lg md:text-xl font-bold text-green-500';
             } else if (ocr.startsWith(typed) || typed.startsWith(ocr)) {
-                const matchLen = [...typed].filter((c, i) => c === [...ocr][i]).length;
+                const ocrChars = [...ocr];
+                const typedChars = [...typed];
+                const matchLen = typedChars.filter((c, i) => c === ocrChars[i]).length;
                 const pct = Math.round((matchLen / Math.max(ocr.length, typed.length)) * 100);
                 result.textContent = `🔄 ${pct}% 一致`;
-                result.className = 'mt-4 text-center text-xl font-bold text-yellow-400';
+                result.className = 'mt-4 text-center text-lg md:text-xl font-bold text-yellow-500';
             } else {
                 result.textContent = '❌ 不一致';
-                result.className = 'mt-4 text-center text-xl font-bold text-red-400';
+                result.className = 'mt-4 text-center text-lg md:text-xl font-bold text-red-500';
             }
         }
 
@@ -350,6 +414,22 @@
             updateCharDisplay();
             updateMatchResult();
             saveProgress();
+        }
+
+        // ============ Image Navigation ============
+        function selectImage(index) {
+            currentImageIndex = index;
+            updateDisplay();
+        }
+
+        function prevImage() {
+            currentImageIndex = (currentImageIndex - 1 + TOTAL_FIELDS.length) % TOTAL_FIELDS.length;
+            updateDisplay();
+        }
+
+        function nextImage() {
+            currentImageIndex = (currentImageIndex + 1) % TOTAL_FIELDS.length;
+            updateDisplay();
         }
 
         // ============ Navigation ============
@@ -363,14 +443,31 @@
             progress.completed.add(key);
             
             saveProgress();
-            updateDisplay();
             
-            // Auto advance
-            setTimeout(() => nextCard(), 100);
+            // Auto advance to next unfinished field
+            const nextFieldIndex = TOTAL_FIELDS.indexOf(currentField) + 1;
+            if (nextFieldIndex < TOTAL_FIELDS.length) {
+                // Switch to next field within same card
+                currentField = TOTAL_FIELDS[nextFieldIndex];
+                document.getElementById('field-select').value = currentField;
+                currentImageIndex = nextFieldIndex;
+                updateDisplay();
+            } else {
+                // Move to next card
+                nextCard();
+            }
         }
 
         function skip() {
-            nextCard();
+            const nextFieldIndex = TOTAL_FIELDS.indexOf(currentField) + 1;
+            if (nextFieldIndex < TOTAL_FIELDS.length) {
+                currentField = TOTAL_FIELDS[nextFieldIndex];
+                document.getElementById('field-select').value = currentField;
+                currentImageIndex = nextFieldIndex;
+            } else {
+                nextCard();
+            }
+            updateDisplay();
         }
 
         function markCorrect() {
@@ -382,6 +479,9 @@
         function prevCard() {
             if (currentIndex > 0) {
                 currentIndex--;
+                currentImageIndex = 0;
+                currentField = TOTAL_FIELDS[0];
+                document.getElementById('field-select').value = currentField;
                 updateDisplay();
             }
         }
@@ -389,6 +489,9 @@
         function nextCard() {
             if (currentIndex < cards.length - 1) {
                 currentIndex++;
+                currentImageIndex = 0;
+                currentField = TOTAL_FIELDS[0];
+                document.getElementById('field-select').value = currentField;
                 updateDisplay();
             }
         }
@@ -398,23 +501,29 @@
             const idx = cards.findIndex(c => c.card_id === id);
             if (idx >= 0) {
                 currentIndex = idx;
+                currentImageIndex = 0;
+                currentField = TOTAL_FIELDS[0];
+                document.getElementById('field-select').value = currentField;
                 updateDisplay();
+            } else {
+                alert('指定されたIDのカードが見つかりません');
             }
         }
 
         function shuffleCards() {
-            // Fisher-Yates shuffle
             for (let i = cards.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [cards[i], cards[j]] = [cards[j], cards[i]];
             }
             currentIndex = 0;
+            currentImageIndex = 0;
+            currentField = TOTAL_FIELDS[0];
+            document.getElementById('field-select').value = currentField;
             updateDisplay();
         }
 
         // ============ Export/Import ============
         function exportJson() {
-            // Apply corrections to cards
             const corrected = cards.map(card => {
                 const corrected = { ...card };
                 TOTAL_FIELDS.forEach(field => {
@@ -433,7 +542,6 @@
         }
 
         function exportCsv() {
-            // Apply corrections and export as CSV
             const corrected = cards.map(card => {
                 const row = {};
                 TOTAL_FIELDS.forEach(field => {
@@ -449,7 +557,6 @@
             const rows = corrected.map(card => {
                 return TOTAL_FIELDS.map(f => {
                     let val = card[f] || '';
-                    // Escape CSV special characters
                     if (val.includes(',') || val.includes('"') || val.includes('\n')) {
                         val = '"' + val.replace(/"/g, '""') + '"';
                     }
@@ -474,16 +581,18 @@
                 const data = JSON.parse(document.getElementById('import-content').value);
                 const importedCards = data.cards || data;
                 
-                // Rebuild corrections from imported data
                 progress.corrections = {};
                 progress.completed = new Set();
                 
                 importedCards.forEach(card => {
                     TOTAL_FIELDS.forEach(field => {
-                        if (card[field] !== undefined && card[field] !== cards.find(c => c.card_id === card.card_id)?.[field]) {
-                            const key = `${card.card_id}_${field}`;
-                            progress.corrections[key] = card[field];
-                            progress.completed.add(key);
+                        if (card[field] !== undefined) {
+                            const originalCard = cards.find(c => c.card_id === card.card_id);
+                            if (originalCard && card[field] !== originalCard[field]) {
+                                const key = `${card.card_id}_${field}`;
+                                progress.corrections[key] = card[field];
+                                progress.completed.add(key);
+                            }
                         }
                     });
                 });
@@ -520,11 +629,22 @@
             alert('コピーしました！');
         }
 
+        function resetProgress() {
+            if (confirm('本当に進捗をリセットしますか？修正データは失われます。')) {
+                progress = { completed: new Set(), corrections: {} };
+                localStorage.removeItem('typingGameProgress');
+                updateDisplay();
+                alert('進捗をリセットしました');
+            }
+        }
+
         // ============ Persistence ============
         function saveProgress() {
             const data = {
                 corrections: progress.corrections,
-                completed: [...progress.completed]
+                completed: [...progress.completed],
+                currentIndex: currentIndex,
+                currentField: currentField
             };
             localStorage.setItem('typingGameProgress', JSON.stringify(data));
         }
@@ -536,6 +656,11 @@
                     const data = JSON.parse(saved);
                     progress.corrections = data.corrections || {};
                     progress.completed = new Set(data.completed || []);
+                    if (data.currentIndex !== undefined) currentIndex = data.currentIndex;
+                    if (data.currentField) {
+                        currentField = data.currentField;
+                        currentImageIndex = TOTAL_FIELDS.indexOf(currentField);
+                    }
                 }
             } catch (e) {
                 console.log('Failed to load progress');
@@ -544,8 +669,7 @@
 
         // ============ Keyboard Shortcuts ============
         function handleKeyboard(e) {
-            // Don't trigger shortcuts when typing in textarea
-            if (e.target.tagName === 'TEXTAREA') return;
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
             
             switch(e.key) {
                 case 'ArrowLeft':
@@ -554,11 +678,15 @@
                 case 'ArrowRight':
                     nextCard();
                     break;
+                case 'ArrowUp':
+                    prevImage();
+                    break;
+                case 'ArrowDown':
+                    nextImage();
+                    break;
                 case 'Enter':
                 case ' ':
-                    if (e.target.id !== 'typed-text') {
-                        document.getElementById('typed-text').focus();
-                    }
+                    document.getElementById('typed-text').focus();
                     break;
             }
         }
